@@ -1,0 +1,168 @@
+/* ==============================================================================
+   EXPERIENCE SECTION STYLES
+   Structural Architectural Timeline with Clean Torii Geometry Lines
+   ============================================================================== */
+
+.experience-wrapper {
+  max-width: 900px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.experience-timeline {
+  position: relative;
+  padding-left: 2.5rem;
+}
+
+/* Vertical Architectural Axis Line */
+.experience-timeline::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 8px;
+  width: 2px;
+  background: linear-gradient(
+    to bottom,
+    var(--crimson) 0%,
+    rgba(230, 57, 70, 0.4) 70%,
+    transparent 100%
+  );
+}
+
+.experience-card-item {
+  position: relative;
+  margin-bottom: 2.5rem;
+}
+
+/* Pulsing Timeline Node */
+.timeline-node {
+  position: absolute;
+  top: 1.5rem;
+  left: -2.5rem;
+  width: 18px;
+  height: 18px;
+  background: var(--bg-deep);
+  border: 2px solid var(--crimson-bright);
+  border-radius: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  box-shadow: 0 0 12px var(--crimson-glow);
+}
+
+.timeline-node-inner {
+  width: 6px;
+  height: 6px;
+  background: #ffffff;
+  border-radius: 50%;
+}
+
+.experience-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.exp-role-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 2vw, 1.5rem);
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 0.35rem;
+}
+
+.exp-company-name {
+  font-size: 1.05rem;
+  color: var(--crimson-bright);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.exp-badge-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.exp-period-badge {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.exp-summary-text {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  margin-bottom: 1.5rem;
+}
+
+/* Responsibilities List */
+.exp-responsibilities-title {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.exp-responsibilities-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-bottom: 1.75rem;
+}
+
+.exp-responsibility-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.exp-bullet-icon {
+  color: var(--crimson);
+  margin-top: 4px;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+
+/* Experience Tech Tags */
+.exp-tech-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+@media (max-width: 640px) {
+  .experience-timeline {
+    padding-left: 1.8rem;
+  }
+  .timeline-node {
+    left: -1.8rem;
+  }
+}

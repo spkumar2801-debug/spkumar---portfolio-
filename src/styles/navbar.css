@@ -1,0 +1,264 @@
+/* ==============================================================================
+   NAVBAR STYLES
+   Minimal Luxury Floating Header with Japanese Architectural Precision
+   ============================================================================== */
+
+.header-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding: 1.25rem 0;
+  transition: all var(--transition-normal);
+}
+
+.header-nav.scrolled {
+  padding: 0.75rem 0;
+  background: rgba(9, 11, 16, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-subtle);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.nav-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 var(--container-padding);
+}
+
+/* Brand Logo */
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: var(--text-primary);
+}
+
+.brand-monogram {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, rgba(230, 57, 70, 0.15) 0%, rgba(13, 21, 39, 0.6) 100%);
+  border: 1px solid var(--border-crimson);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all var(--transition-normal);
+}
+
+.brand-monogram span {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.brand-logo:hover .brand-monogram {
+  border-color: var(--crimson-bright);
+  box-shadow: 0 0 16px var(--crimson-glow);
+  transform: translateY(-1px);
+}
+
+.brand-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.brand-sub {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--crimson-bright);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Desktop Navigation Links */
+.nav-menu-desktop {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  gap: 0.4rem;
+  background: rgba(14, 18, 26, 0.7);
+  padding: 0.4rem 0.6rem;
+  border-radius: 100px;
+  border: 1px solid var(--border-subtle);
+  backdrop-filter: blur(12px);
+}
+
+.nav-link {
+  display: inline-block;
+  padding: 0.45rem 1rem;
+  font-size: 0.86rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-radius: 100px;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.nav-link:hover {
+  color: #ffffff;
+}
+
+.nav-link.active {
+  color: #ffffff;
+  background: rgba(230, 57, 70, 0.15);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px rgba(230, 57, 70, 0.35);
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.nav-cta-btn {
+  padding: 0.55rem 1.15rem;
+  font-size: 0.82rem;
+  border-radius: 100px;
+}
+
+/* Mobile Hamburger Toggle */
+.mobile-nav-toggle {
+  display: none;
+  background: rgba(14, 18, 26, 0.8);
+  border: 1px solid var(--border-medium);
+  border-radius: 8px;
+  padding: 0.55rem;
+  cursor: pointer;
+  color: var(--text-primary);
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.mobile-nav-toggle:hover {
+  border-color: var(--crimson);
+  color: var(--crimson-bright);
+}
+
+.mobile-nav-toggle svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* Mobile Drawer */
+.mobile-nav-drawer {
+  position: fixed;
+  top: 0;
+  right: -100%;
+  width: min(320px, 85vw);
+  height: 100vh;
+  background: rgba(9, 11, 16, 0.98);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-left: 1px solid var(--border-subtle);
+  z-index: 200;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: -20px 0 50px rgba(0, 0, 0, 0.8);
+}
+
+.mobile-nav-drawer.open {
+  right: 0;
+}
+
+.mobile-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.mobile-close-btn {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  padding: 0.4rem;
+  cursor: pointer;
+  display: flex;
+}
+
+.mobile-close-btn:hover {
+  color: #fff;
+  border-color: var(--crimson);
+}
+
+.mobile-nav-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.mobile-nav-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-radius: 8px;
+  transition: all var(--transition-fast);
+}
+
+.mobile-nav-link:hover,
+.mobile-nav-link.active {
+  color: #ffffff;
+  background: rgba(230, 57, 70, 0.1);
+  border-left: 3px solid var(--crimson);
+}
+
+.mobile-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 150;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.mobile-drawer-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Responsive Nav Breakpoints */
+@media (max-width: 900px) {
+  .nav-menu-desktop,
+  .nav-cta-btn {
+    display: none;
+  }
+  .mobile-nav-toggle {
+    display: flex;
+  }
+}

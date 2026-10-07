@@ -1,0 +1,363 @@
+/* ==============================================================================
+   PROJECTS SECTION STYLES
+   Cinematic Showcase Cards, Modern UI Mockup Previews & Architecture
+   ============================================================================== */
+
+.projects-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 3.5rem;
+}
+
+.project-card {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: clamp(2rem, 4vw, 3.5rem);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 18px;
+  padding: clamp(1.8rem, 3vw, 2.75rem);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  position: relative;
+  overflow: hidden;
+  transition: all var(--transition-normal);
+}
+
+.project-card:hover {
+  border-color: rgba(230, 57, 70, 0.4);
+  background: var(--bg-card-hover);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(230, 57, 70, 0.08);
+  transform: translateY(-4px);
+}
+
+.project-card:nth-child(even) {
+  grid-template-columns: 0.9fr 1.1fr;
+}
+
+.project-card:nth-child(even) .project-preview-wrapper {
+  order: 2;
+}
+
+.project-card:nth-child(even) .project-details {
+  order: 1;
+}
+
+/* Visual Mockup Preview Container */
+.project-preview-wrapper {
+  position: relative;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(13, 21, 39, 0.95) 0%, rgba(7, 9, 14, 0.98) 100%);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  min-height: 290px;
+  display: flex;
+  flex-direction: column;
+  transition: all var(--transition-normal);
+}
+
+.project-card:hover .project-preview-wrapper {
+  border-color: var(--border-medium);
+}
+
+/* Browser/Terminal Mockup Header */
+.preview-browser-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.75rem 1rem;
+  background: rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.browser-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.browser-dot.red { background-color: #ff5f56; }
+.browser-dot.yellow { background-color: #ffbd2e; }
+.browser-dot.green { background-color: #27c93f; }
+
+.browser-address-bar {
+  flex: 1;
+  margin-left: 0.75rem;
+  padding: 0.2rem 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Mockup Interactive Visual Canvas */
+.preview-canvas-content {
+  flex: 1;
+  padding: 1.5rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+/* Specialized Visuals for each project */
+/* Project 1: College Portal Visual */
+.mockup-college {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.mockup-hero-banner {
+  height: 60px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, rgba(230, 57, 70, 0.25) 0%, rgba(13, 21, 39, 0.6) 100%);
+  border: 1px dashed rgba(230, 57, 70, 0.4);
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  justify-content: space-between;
+}
+
+.mockup-grid-blocks {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+}
+
+.mockup-block {
+  height: 70px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.mockup-line {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+.mockup-line.short { width: 60%; }
+.mockup-line.crimson { background: rgba(230, 57, 70, 0.4); }
+
+/* Project 2: Sloopin Social Feed Mockup */
+.mockup-social-feed {
+  width: 100%;
+  display: flex;
+  gap: 1rem;
+}
+
+.mockup-feed-card {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.mockup-feed-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mockup-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--cyan-neon), #3b82f6);
+}
+
+.mockup-media-container {
+  height: 80px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(13, 21, 39, 0.8) 100%);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* Project 3: AI CNN Neural Vision Mockup */
+.mockup-neural-vision {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.cnn-scanner-frame {
+  width: 100%;
+  height: 120px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, rgba(9, 11, 16, 0.9) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 8px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.cnn-scanner-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #10b981;
+  box-shadow: 0 0 10px #10b981;
+  animation: cnn-scan 2.5s ease-in-out infinite alternate;
+}
+
+@keyframes cnn-scan {
+  0% { top: 0%; opacity: 0.4; }
+  100% { top: 96%; opacity: 1; }
+}
+
+.cnn-status-output {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 0.6rem 0.85rem;
+  background: rgba(16, 185, 129, 0.06);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: #34d399;
+}
+
+/* Project Details Side */
+.project-details {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.project-category-tag {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--crimson-bright);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 0.6rem;
+}
+
+.project-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 2.2vw, 1.9rem);
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.25;
+  margin-bottom: 1rem;
+}
+
+.project-description {
+  font-size: 0.98rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  margin-bottom: 1.4rem;
+}
+
+.project-highlights-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 1.5rem;
+}
+
+.project-highlight-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.88rem;
+  color: #cbd5e1;
+}
+
+.project-highlight-item svg {
+  color: var(--crimson-bright);
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.project-tech-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.75rem;
+}
+
+/* Project Action Links */
+.project-links-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.project-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: 8px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+.project-link-primary {
+  background: rgba(230, 57, 70, 0.15);
+  border: 1px solid var(--border-crimson);
+  color: #ffffff;
+}
+
+.project-link-primary:hover {
+  background: var(--crimson);
+  border-color: var(--crimson-bright);
+  box-shadow: 0 4px 18px var(--crimson-glow);
+}
+
+.project-link-secondary {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.project-link-secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-medium);
+  color: #ffffff;
+}
+
+@media (max-width: 960px) {
+  .project-card,
+  .project-card:nth-child(even) {
+    grid-template-columns: 1fr;
+  }
+  .project-card:nth-child(even) .project-preview-wrapper {
+    order: 1;
+  }
+  .project-card:nth-child(even) .project-details {
+    order: 2;
+  }
+}

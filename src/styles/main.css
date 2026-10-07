@@ -1,0 +1,446 @@
+@import './variables.css';
+
+/* ==============================================================================
+   GLOBAL RESET & BASE STYLES
+   ============================================================================== */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+  background-color: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-height: 100vh;
+  position: relative;
+  background: 
+    radial-gradient(circle at 50% 0%, rgba(230, 57, 70, 0.07) 0%, transparent 45%),
+    radial-gradient(circle at 10% 30%, rgba(13, 21, 39, 0.8) 0%, transparent 50%),
+    radial-gradient(circle at 90% 60%, rgba(147, 51, 234, 0.05) 0%, transparent 45%),
+    radial-gradient(circle at 50% 90%, rgba(0, 210, 255, 0.04) 0%, transparent 50%),
+    var(--bg-deep);
+  overflow-x: hidden;
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+/* Subtle Japanese Architectural Grid Texture Overlay */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+  background-size: 64px 64px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Subtle Japanese Torii / Asanoha geometric watermarking */
+.bg-geometric-ambient {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.25;
+  background-image: radial-gradient(rgba(230, 57, 70, 0.15) 1px, transparent 0);
+  background-size: 40px 40px;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-deep);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--crimson);
+}
+
+/* Selection */
+::selection {
+  background: rgba(230, 57, 70, 0.4);
+  color: #fff;
+}
+
+/* ==============================================================================
+   LAYOUT & CONTAINER
+   ============================================================================== */
+
+.container {
+  width: 100%;
+  max-width: var(--max-width);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--container-padding);
+  padding-right: var(--container-padding);
+  position: relative;
+  z-index: 2;
+}
+
+.section-wrapper {
+  padding-top: var(--section-spacing);
+  padding-bottom: var(--section-spacing);
+  position: relative;
+}
+
+/* ==============================================================================
+   SECTION HEADINGS - JAPANESE ARCHITECTURAL MOTIFS
+   ============================================================================== */
+
+.section-header {
+  margin-bottom: clamp(2.5rem, 5vw, 4rem);
+  position: relative;
+}
+
+.section-header.text-center {
+  text-align: center;
+}
+
+.section-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 0.9rem;
+  background: rgba(230, 57, 70, 0.08);
+  border: 1px solid rgba(230, 57, 70, 0.25);
+  border-radius: 100px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--crimson-bright);
+  margin-bottom: 1rem;
+}
+
+.section-tag .tag-kanji {
+  font-family: var(--font-kanji);
+  font-size: 0.85rem;
+  opacity: 0.9;
+  color: var(--crimson);
+  border-right: 1px solid rgba(230, 57, 70, 0.3);
+  padding-right: 0.5rem;
+  margin-right: 0.1rem;
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 3.8vw, 3.2rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.section-title .text-gradient {
+  background: linear-gradient(135deg, #ffffff 40%, rgba(255, 255, 255, 0.65) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.section-title .accent-text {
+  color: var(--crimson-bright);
+  position: relative;
+  display: inline-block;
+}
+
+.section-title .accent-text::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--crimson), transparent);
+}
+
+.section-subtitle {
+  font-size: clamp(0.95rem, 1.2vw, 1.12rem);
+  color: var(--text-secondary);
+  max-width: 650px;
+  line-height: 1.7;
+}
+
+.section-header.text-center .section-subtitle {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ==============================================================================
+   BUTTONS & INTERACTIVE ELEMENTS
+   ============================================================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1.6rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  border-radius: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+  letter-spacing: 0.02em;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--crimson) 0%, #c1121f 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 20px var(--crimson-glow);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, var(--crimson-bright) 0%, #b2101b 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px var(--crimson-glow-strong);
+  color: #fff;
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background: rgba(18, 24, 38, 0.7);
+  color: var(--text-primary);
+  border: 1px solid var(--border-medium);
+  backdrop-filter: blur(12px);
+}
+
+.btn-secondary:hover {
+  background: rgba(26, 34, 52, 0.9);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+  color: #ffffff;
+}
+
+.btn-outline-crimson {
+  background: transparent;
+  color: var(--crimson-bright);
+  border: 1px solid rgba(230, 57, 70, 0.4);
+}
+
+.btn-outline-crimson:hover {
+  background: rgba(230, 57, 70, 0.12);
+  border-color: var(--crimson);
+  transform: translateY(-2px);
+}
+
+/* Subtle Shimmer Effect on Primary Buttons */
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transform: skewX(-20deg);
+  transition: 0.75s ease-in-out;
+}
+
+.btn-primary:hover::after {
+  left: 200%;
+}
+
+/* ==============================================================================
+   LUXURY CARDS & GLASSMORPHISM
+   ============================================================================== */
+
+.luxury-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: clamp(1.5rem, 3vw, 2.2rem);
+  position: relative;
+  transition: all var(--transition-normal);
+  overflow: hidden;
+}
+
+.luxury-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+}
+
+.luxury-card:hover {
+  border-color: var(--border-medium);
+  background: var(--bg-card-hover);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+.luxury-card.card-crimson-border:hover {
+  border-color: var(--border-crimson);
+  box-shadow: 0 10px 30px rgba(230, 57, 70, 0.12);
+}
+
+/* Traditional Japanese Corner Accents */
+.torii-corner-accent {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: var(--crimson);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.torii-corner-top-left {
+  top: 8px;
+  left: 8px;
+  border-top: 2px solid var(--crimson);
+  border-left: 2px solid var(--crimson);
+}
+
+.torii-corner-bottom-right {
+  bottom: 8px;
+  right: 8px;
+  border-bottom: 2px solid var(--crimson);
+  border-right: 2px solid var(--crimson);
+}
+
+/* ==============================================================================
+   PILLS & TAGS
+   ============================================================================== */
+
+.tech-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: #cbd5e1;
+  transition: all var(--transition-fast);
+}
+
+.tech-tag:hover {
+  background: rgba(230, 57, 70, 0.12);
+  border-color: rgba(230, 57, 70, 0.3);
+  color: #ffffff;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.85rem;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 100px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #34d399;
+}
+
+.status-pulse {
+  width: 8px;
+  height: 8px;
+  background-color: #10b981;
+  border-radius: 50%;
+  position: relative;
+}
+
+.status-pulse::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background-color: #10b981;
+  animation: pulse-ring 2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  70% { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* ==============================================================================
+   TOAST NOTIFICATION & FEEDBACK TOOLTIP
+   ============================================================================== */
+
+.copy-toast {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  padding: 0.85rem 1.4rem;
+  background: rgba(14, 18, 28, 0.95);
+  border: 1px solid var(--crimson);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 0 20px var(--crimson-glow);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  transform: translateY(100px);
+  opacity: 0;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.copy-toast.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* ==============================================================================
+   SCROLL REVEAL ANIMATIONS
+   ============================================================================== */
+
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.reveal-on-scroll.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+.reveal-delay-4 { transition-delay: 0.4s; }
