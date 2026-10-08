@@ -85,15 +85,12 @@
       if (webglSupport >= 3 && cores >= 6 && memory >= 4) {
         return 2;
       }
-      // Weak/low-end mobile GPU, or <=3GB RAM, or <4 cores: safe lightweight 2D fallback
-      if (webglSupport <= 1 || memory <= 3 || cores < 4) {
+      // Only fallback if WebGL is unsupported or software emulation
+      if (webglSupport === 0) {
         return 4;
       }
-      // Mid-range mobile: balanced 3D
-      if (cores >= 4 && memory >= 4 && webglSupport >= 2) {
-        return 3;
-      }
-      return 4;
+      // Mid-range & budget mobile with WebGL: Level 3 (Lightweight Continuous 3D)
+      return 3;
     }
 
     return 3;
@@ -1252,6 +1249,22 @@
     scene.background = new THREE.Color(0x060a0d);
     camera = new THREE.PerspectiveCamera(36, vpW() / vpH(), .35, 220);
     scene.add(camera);
+
+    // Safely handle WebGL context loss & restoration on mobile devices
+    if (canvas) {
+      canvas.addEventListener('webglcontextlost', (e) => {
+        e.preventDefault();
+        console.warn('[kage] WebGL context lost — pausing loop safely');
+        running = false;
+      }, false);
+
+      canvas.addEventListener('webglcontextrestored', () => {
+        console.info('[kage] WebGL context restored — resuming');
+        running = true;
+        tPrev = performance.now();
+        queue();
+      }, false);
+    }
   }
 
   function tx(canvasEl, o) {
@@ -3678,15 +3691,19 @@ void main () {
   let FRAME = 0;
   function render() {
     FRAME++;
-    renderer.setRenderTarget(WANT_POST ? POST.scene : null);
-    renderer.clear(true, true, false);
-    renderer.render(scene, camera);
-    renderCards(WANT_POST ? POST.scene : null);
-    renderer.setRenderTarget(null);
-    if (WANT_POST) {
-      POST.comp.uniforms.uT.value = clock;
-      POST.comp.uniforms.uFade.value = fadeIn;
-      renderPost();
+    try {
+      renderer.setRenderTarget(WANT_POST ? POST.scene : null);
+      renderer.clear(true, true, false);
+      renderer.render(scene, camera);
+      renderCards(WANT_POST ? POST.scene : null);
+      renderer.setRenderTarget(null);
+      if (WANT_POST && POST && POST.comp) {
+        POST.comp.uniforms.uT.value = clock;
+        POST.comp.uniforms.uFade.value = fadeIn;
+        renderPost();
+      }
+    } catch (err) {
+      console.warn('[kage] render error caught:', err);
     }
   }
 
@@ -3701,18 +3718,12 @@ void main () {
       PERF.acc += raw; PERF.n++;      /* Sample frame times during steady playback */
       if (PERF.n >= 50 || PERF.acc > 2.0) {
         const avg = PERF.acc / PERF.n; PERF.acc = 0; PERF.n = 0;
-        if (avg > .0280 && PERF.scale > .65) {
-          PERF.scale = Math.max(.65, PERF.scale * .85);
+        if (avg > .0280 && PERF.scale > .60) {
+          PERF.scale = Math.max(.60, PERF.scale * .85);
           resize(false);
         } else if (avg > .055 && TIER === 2) {
-          // Sustained severe drop (< 18fps): adapt Tier 2 to Tier 3
-          console.warn('[kage] Adapting to Tier 3 for sustained smoothness');
+          // If high-end mobile struggles, adapt to Tier 3 (lightweight continuous 3D)
           applyTierChange(3);
-        } else if (avg > .060 && TIER === 3) {
-          // Sustained severe drop (< 16fps): safely step to 2D fallback
-          console.warn('[kage] Adapting to Tier 4 safe fallback for sustained smoothness');
-          applyTierChange(4);
-          return;
         } else if (avg < .0140 && PERF.scale < 1) {
           PERF.scale = Math.min(1, PERF.scale + .05);
           resize(false);
@@ -3952,8 +3963,6 @@ void main () {
     document.addEventListener('visibilitychange', () => {
       runningFallback = !document.hidden;
       if (runningFallback && TIER === 4) {
-        fallbackSleeping = false;
-        lastFallbackActivity = performance.now();
         requestAnimationFrame(renderFallbackFrame);
       } else if (fallbackRaf) {
         cancelAnimationFrame(fallbackRaf);
@@ -4032,13 +4041,14 @@ void main () {
       return;
     }
 
-    // Safety watchdog: never leave the user locked on preloader
+    // Safety watchdog: ensure preloader never traps the user if network lags
     safetyWatchdog = setTimeout(() => {
       if (!preEl.classList.contains('done')) {
-        console.warn('[kage] preloader safety unlock triggered - switching to fallback');
-        fallback(new Error('Preloader timeout'));
+        preEl.classList.add('done');
+        document.body.classList.remove('is-locked');
+        $$('[data-rv], .mask-line').forEach(e => e.classList.add('rv-in'));
       }
-    }, 4500);
+    }, 8000);
 
     let i = 0;
     const step = () => {
@@ -4105,6 +4115,8 @@ void main () {
     window.__kage = window.__secret = {
       tier: TIER,
       qualityLevel: TIER,
+      getFrame: () => FRAME,
+      isRunning: () => running,
       isFallback: false,
       RIG: RIG,
       WORLD: WORLD,
