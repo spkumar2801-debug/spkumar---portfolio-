@@ -35,19 +35,19 @@
     // Signal 1: prefers-reduced-motion
     if (REDUCE) return 5;
 
-    // Signal 2: Data Saver / 2G connection
-    if (navigator.connection && (navigator.connection.saveData || navigator.connection.effectiveType === '2g')) {
+    // Signal 2: Data Saver / 2G or slow connection
+    if (navigator.connection && (navigator.connection.saveData || navigator.connection.effectiveType === '2g' || navigator.connection.effectiveType === 'slow-2g')) {
       return 4;
     }
 
-    const cores = navigator.hardwareConcurrency || 4;
-    const memory = navigator.deviceMemory || 4;
+    const cores = typeof navigator.hardwareConcurrency === 'number' ? navigator.hardwareConcurrency : 4;
+    const memory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : 4;
     const isTouch = (navigator.maxTouchPoints && navigator.maxTouchPoints > 1) || COARSE;
     const isNarrow = window.innerWidth <= 820;
     const isMobileDev = isTouch && (isNarrow || window.innerWidth <= 1024);
     const isDesktopDev = !isTouch && window.innerWidth > 1024;
 
-    // Signal 3: WebGL capabilities
+    // Signal 3: WebGL capabilities & GPU unmasked renderer audit
     let webglSupport = 2; // 0=none, 1=weak/software, 2=standard, 3=flagship
     try {
       const tc = document.createElement('canvas');
@@ -60,10 +60,10 @@
           const rdr = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL).toLowerCase();
           if (rdr.includes('swiftshader') || rdr.includes('llvmpipe') || rdr.includes('software')) {
             webglSupport = 0;
-          } else if (/apple|adreno\s*(6[4-9]\d|7\d\d)|mali-g7\d|mali-g6\d|nvidia|geforce|radeon/i.test(rdr)) {
-            webglSupport = 3;
-          } else if (/mali-4|mali-t|adreno\s*[345]|powervr/i.test(rdr)) {
-            webglSupport = 1;
+          } else if (/apple|adreno\s*(6[8-9]\d|7\d\d|8\d\d)|mali-g71\d|mali-g72\d|mali-g9\d\d|immortalis/i.test(rdr)) {
+            webglSupport = 3; // Flagship mobile / high-performance GPU
+          } else if (/mali-4|mali-t|mali-g5\d|adreno\s*[345]|adreno\s*61[0-9]|powervr/i.test(rdr)) {
+            webglSupport = 1; // Budget/weak mobile GPU
           }
         }
       }
@@ -81,16 +81,84 @@
 
     // Mobile / Tablet:
     if (isMobileDev || isNarrow) {
-      if ((cores >= 8 && memory >= 6) || (webglSupport >= 3 && cores >= 6 && memory >= 4)) {
+      // Flagship mobile: Apple GPU or high-tier Adreno/Mali, >=6 cores, >=4GB RAM
+      if (webglSupport >= 3 && cores >= 6 && memory >= 4) {
         return 2;
       }
-      if (cores >= 4 && memory >= 3 && webglSupport >= 2) {
+      // Weak/low-end mobile GPU, or <=3GB RAM, or <4 cores: safe lightweight 2D fallback
+      if (webglSupport <= 1 || memory <= 3 || cores < 4) {
+        return 4;
+      }
+      // Mid-range mobile: balanced 3D
+      if (cores >= 4 && memory >= 4 && webglSupport >= 2) {
         return 3;
       }
       return 4;
     }
 
     return 3;
+  }
+
+  function disposeThreeScene() {
+    running = false;
+    try {
+      if (scene) {
+        scene.traverse(obj => {
+          if (obj.geometry) {
+            try { obj.geometry.dispose(); } catch {}
+          }
+          if (obj.material) {
+            const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+            mats.forEach(m => {
+              try {
+                if (m.map) m.map.dispose();
+                if (m.normalMap) m.normalMap.dispose();
+                if (m.roughnessMap) m.roughnessMap.dispose();
+                if (m.uniforms) {
+                  for (const key in m.uniforms) {
+                    const u = m.uniforms[key];
+                    if (u && u.value && u.value.isTexture) {
+                      try { u.value.dispose(); } catch {}
+                    }
+                  }
+                }
+                m.dispose();
+              } catch {}
+            });
+          }
+        });
+        scene.clear();
+      }
+      if (POST) {
+        if (POST.scene) { try { POST.scene.dispose(); } catch {} }
+        if (POST.levels) {
+          POST.levels.forEach(L => {
+            try { L.a?.dispose(); L.b?.dispose(); } catch {}
+          });
+        }
+      }
+      if (renderer) {
+        try {
+          renderer.dispose();
+          renderer.forceContextLoss();
+        } catch {}
+      }
+    } catch (e) {
+      console.warn('[kage] disposal note:', e);
+    }
+  }
+
+  function applyTierChange(newTier) {
+    if (TIER === newTier) return;
+    TIER = newTier;
+    document.documentElement.className = document.documentElement.className.replace(/perf-tier-\d/, 'perf-tier-' + newTier);
+    document.documentElement.dataset.tier = String(newTier);
+    if (newTier >= 4) {
+      disposeThreeScene();
+      initSanctuaryFallbackCanvas();
+    } else {
+      resize(false);
+    }
   }
 
   let TIER = detectTier();
@@ -1151,8 +1219,8 @@
   const LOW = TIER >= 3;
   const WANT_POST = (TIER === 1 || TIER === 2) && qs('post', '1') !== '0';
   const WANT_SHADOW = (TIER === 1) && qs('shadow', '1') !== '0';
-  /* Desktop capped at 1.5; high mobile capped at 1.2; mid mobile capped at 1.0 */
-  const DPR_CAP = qn('dpr', TIER === 1 ? 1.5 : (TIER === 2 ? 1.2 : 1.0));
+  /* Desktop capped at 1.5; high mobile capped at 1.15; mid mobile capped at 0.95 */
+  const DPR_CAP = qn('dpr', TIER === 1 ? 1.5 : (TIER === 2 ? 1.15 : (TIER === 3 ? 0.95 : 1.0)));
   /* the renderer trades resolution for frame rate on its own — the scene is
      fill-bound (five big alpha-blended veils plus a bloom chain), so pixels
      are the only knob worth turning on unknown hardware */
@@ -3140,6 +3208,11 @@ void main () {
      move costs nothing in layout: the stage is position:fixed either way, and
      its placement rules key off [data-fg], not off the section it came from. */
   function wireForegroundStages() {
+    if (isMobile || (typeof window !== 'undefined' && window.innerWidth <= 820) || TIER >= 2) {
+      // Mobile optimization: leave foreground artwork in local DOM stacking context
+      // Completely eliminates DOM re-parenting, forced reflows, and blur lag on mobile
+      return;
+    }
     const pairs = $$('.sec .fg, .foot .fg').map(stage => ({
       section: stage.closest('.sec, .foot'), stage
     })).filter(pair => pair.section);
@@ -3237,16 +3310,24 @@ void main () {
     ].filter(o => o.el);
     let on = false;
     let ticking = false;
+    let pastHero = false;
     const apply = () => {
       ticking = false;
       const t = clamp(scrollY / Math.max(1, vpH() * .58), 0, 1);
       if (t <= 0) {
+        pastHero = false;
         if (!on) return;
         seq.forEach(o => {
           o.el.style.opacity = ''; o.el.style.transform = ''; o.el.style.filter = '';
           o.el.style.pointerEvents = ''; o.el.style.transition = '';
         });
         on = false; return;
+      }
+      if (t >= 1) {
+        if (pastHero) return;
+        pastHero = true;
+      } else {
+        pastHero = false;
       }
       on = true;
       seq.forEach(o => {
@@ -3618,14 +3699,17 @@ void main () {
 
     if (!PERF.locked && clock > 2.0) {
       PERF.acc += raw; PERF.n++;      /* … but the governor reads the truth */
-      if (PERF.n >= 45 || PERF.acc > 1.5) {
+      if (PERF.n >= 35 || PERF.acc > 1.2) {
         const avg = PERF.acc / PERF.n; PERF.acc = 0; PERF.n = 0;
-        if (avg > .034 && TIER === 2) {
-          // Frame rate dropped below 29fps on Tier 2: switch to Tier 3
-          TIER = 3;
-          document.documentElement.className = document.documentElement.className.replace(/perf-tier-\d/, 'perf-tier-3');
-          document.documentElement.dataset.tier = '3';
-          resize(false);
+        if (avg > .040 && TIER === 2) {
+          // Frame rate dropped below 25fps on Tier 2: switch to Tier 3
+          console.warn('[kage] Frame budget exceeded in Tier 2, auto-adapting to Tier 3');
+          applyTierChange(3);
+        } else if (avg > .044 && TIER === 3) {
+          // Frame rate dropped below 22fps on Tier 3: safely drop to 2D canvas fallback
+          console.warn('[kage] Frame budget exceeded in Tier 3, auto-adapting to Tier 4 (safe fallback)');
+          applyTierChange(4);
+          return;
         } else if (avg > .0280 && PERF.scale > .65) {
           PERF.scale = Math.max(.65, PERF.scale * .85);
           resize(false);
@@ -3653,20 +3737,44 @@ void main () {
     applyCamera();
     updateWorld(dt);
     render();
+
+    // Mid-range mobile (Tier 3) Idle Sleep: when camera reached resting position and no interaction, sleep completely!
+    if (TIER === 3 && (now - lastActiveScrollTime > 1500) && Math.abs(RIG.smooth - RIG.prog) < 0.0015) {
+      isSleeping = true;
+      return;
+    }
+
     queue();
   }
   const TIMER = qs('driver', 'raf') === 'timer';
+  let isSleeping = false;
   let lastActiveScrollTime = performance.now();
-  addEventListener('scroll', () => { lastActiveScrollTime = performance.now(); }, { passive: true });
-  addEventListener('touchmove', () => { lastActiveScrollTime = performance.now(); }, { passive: true });
+  const wakeUp = () => {
+    lastActiveScrollTime = performance.now();
+    if (isSleeping && running && !document.hidden) {
+      isSleeping = false;
+      tPrev = performance.now();
+      queue();
+    }
+  };
+  addEventListener('scroll', wakeUp, { passive: true });
+  addEventListener('touchstart', wakeUp, { passive: true });
+  addEventListener('touchmove', wakeUp, { passive: true });
+  addEventListener('wheel', wakeUp, { passive: true });
+
   function queue() {
+    if (!running || isSleeping || document.hidden) return;
     if (TIMER) {
       setTimeout(() => frame(performance.now()), 16);
       return;
     }
-    // Mid-range mobile (Tier 3) battery saver: if idle for > 2.5s, throttle to 30fps
-    if (TIER === 3 && (performance.now() - lastActiveScrollTime > 2500)) {
-      setTimeout(() => requestAnimationFrame(frame), 16);
+    const idleTime = performance.now() - lastActiveScrollTime;
+    if (TIER === 3 && idleTime > 600) {
+      // Throttle to 20fps while settling
+      setTimeout(() => requestAnimationFrame(frame), 50);
+    } else if (TIER === 2 && idleTime > 1000) {
+      // Throttle to 30fps when idle on high-end mobile
+      setTimeout(() => requestAnimationFrame(frame), 33);
     } else {
       requestAnimationFrame(frame);
     }
@@ -3681,16 +3789,106 @@ void main () {
 
     let fW = 0, fH = 0;
     const embers = [];
-    const EMBER_COUNT = (TIER === 5) ? 12 : 24;
+    const EMBER_COUNT = (TIER === 5) ? 8 : 16;
+    let cacheCanvas = null;
+    let cacheH = 0;
+
+    function buildCacheBackground(W, H) {
+      cacheCanvas = document.createElement('canvas');
+      cacheH = H + 160;
+      cacheCanvas.width = W;
+      cacheCanvas.height = cacheH;
+      const bCtx = cacheCanvas.getContext('2d');
+      if (!bCtx) return;
+
+      // 1. Deep Kyoto twilight sky
+      const skyGrad = bCtx.createLinearGradient(0, 0, 0, cacheH);
+      skyGrad.addColorStop(0, '#04070a');
+      skyGrad.addColorStop(0.35, '#060b10');
+      skyGrad.addColorStop(0.70, '#09131a');
+      skyGrad.addColorStop(1, '#05080c');
+      bCtx.fillStyle = skyGrad;
+      bCtx.fillRect(0, 0, W, cacheH);
+
+      // 2. Distant mountain ridges (Layer 1)
+      bCtx.fillStyle = '#060c12';
+      bCtx.beginPath();
+      bCtx.moveTo(0, cacheH * 0.58);
+      bCtx.bezierCurveTo(W * 0.25, cacheH * 0.51, W * 0.5, cacheH * 0.61, W * 0.75, cacheH * 0.55);
+      bCtx.bezierCurveTo(W * 0.88, cacheH * 0.52, W * 0.95, cacheH * 0.58, W, cacheH * 0.60);
+      bCtx.lineTo(W, cacheH);
+      bCtx.lineTo(0, cacheH);
+      bCtx.closePath();
+      bCtx.fill();
+
+      // 3. Mid-distance mountain & forest ridge (Layer 2)
+      bCtx.fillStyle = '#05090e';
+      bCtx.beginPath();
+      bCtx.moveTo(0, cacheH * 0.68);
+      bCtx.bezierCurveTo(W * 0.2, cacheH * 0.64, W * 0.45, cacheH * 0.71, W * 0.65, cacheH * 0.66);
+      bCtx.bezierCurveTo(W * 0.85, cacheH * 0.63, W * 0.95, cacheH * 0.69, W, cacheH * 0.70);
+      bCtx.lineTo(W, cacheH);
+      bCtx.lineTo(0, cacheH);
+      bCtx.closePath();
+      bCtx.fill();
+
+      // 4. Luminous Kyoto Vermilion Moon
+      const moonX = W * 0.72;
+      const moonY = Math.max(70, cacheH * 0.20);
+      const moonRadius = Math.min(W * 0.16, 68);
+
+      // Outer moon corona
+      const corona = bCtx.createRadialGradient(moonX, moonY, moonRadius * 0.4, moonX, moonY, moonRadius * 3.2);
+      corona.addColorStop(0, 'rgba(224, 35, 28, 0.30)');
+      corona.addColorStop(0.35, 'rgba(255, 80, 50, 0.10)');
+      corona.addColorStop(0.70, 'rgba(224, 35, 28, 0.02)');
+      corona.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      bCtx.fillStyle = corona;
+      bCtx.beginPath();
+      bCtx.arc(moonX, moonY, moonRadius * 3.2, 0, Math.PI * 2);
+      bCtx.fill();
+
+      // Moon disc
+      const moonDisc = bCtx.createRadialGradient(moonX - moonRadius * 0.2, moonY - moonRadius * 0.2, moonRadius * 0.1, moonX, moonY, moonRadius);
+      moonDisc.addColorStop(0, '#ff4a36');
+      moonDisc.addColorStop(0.7, '#e0231c');
+      moonDisc.addColorStop(1, '#a61712');
+      bCtx.fillStyle = moonDisc;
+      bCtx.beginPath();
+      bCtx.arc(moonX, moonY, moonRadius, 0, Math.PI * 2);
+      bCtx.fill();
+
+      // 5. Ground Mist / Kyoto Fog
+      const mist = bCtx.createLinearGradient(0, cacheH * 0.50, 0, cacheH);
+      mist.addColorStop(0, 'rgba(120, 160, 175, 0)');
+      mist.addColorStop(0.65, 'rgba(120, 160, 175, 0.05)');
+      mist.addColorStop(1, 'rgba(10, 15, 20, 0.75)');
+      bCtx.fillStyle = mist;
+      bCtx.fillRect(0, cacheH * 0.50, W, cacheH * 0.50);
+
+      // 6. Traditional Japanese Sanmon / Temple Roof Silhouette
+      bCtx.fillStyle = '#04070a';
+      const roofY = cacheH * 0.78;
+      const roofW = Math.min(W * 0.85, 420);
+      const roofX = (W - roofW) * 0.5;
+      bCtx.beginPath();
+      bCtx.moveTo(roofX, roofY + 12);
+      bCtx.quadraticCurveTo(roofX + roofW * 0.5, roofY - 8, roofX + roofW, roofY + 12);
+      bCtx.lineTo(roofX + roofW - 14, roofY + 22);
+      bCtx.quadraticCurveTo(roofX + roofW * 0.5, roofY + 6, roofX + 14, roofY + 22);
+      bCtx.closePath();
+      bCtx.fill();
+    }
 
     function resizeFallback() {
       fW = vpW();
       fH = vpH();
-      const dpr = Math.min(devicePixelRatio || 1, 1.25);
+      const dpr = 1.0;
       glCanvas.width = Math.round(fW * dpr);
       glCanvas.height = Math.round(fH * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       document.documentElement.style.setProperty('--vw', fW + 'px');
+      buildCacheBackground(fW, fH);
       measure();
     }
 
@@ -3699,133 +3897,83 @@ void main () {
       embers.push({
         x: Math.random() * (fW || 400),
         y: Math.random() * (fH || 800),
-        size: 1.2 + Math.random() * 2.2,
-        speedY: 0.25 + Math.random() * 0.55,
-        swaySpeed: 0.8 + Math.random() * 1.5,
+        size: 1.2 + Math.random() * 2.0,
+        speedY: 0.20 + Math.random() * 0.45,
+        swaySpeed: 0.6 + Math.random() * 1.2,
         phase: Math.random() * Math.PI * 2,
-        alpha: 0.25 + Math.random() * 0.6
+        alpha: 0.25 + Math.random() * 0.55
       });
     }
 
     let fTime = 0;
     let runningFallback = true;
+    let fallbackSleeping = false;
+    let lastFallbackActivity = performance.now();
+    let fallbackRaf = null;
+
+    const wakeFallback = () => {
+      lastFallbackActivity = performance.now();
+      if (fallbackSleeping && TIER === 4 && runningFallback && !document.hidden) {
+        fallbackSleeping = false;
+        fallbackRaf = requestAnimationFrame(renderFallbackFrame);
+      }
+    };
+    addEventListener('scroll', wakeFallback, { passive: true });
+    addEventListener('touchstart', wakeFallback, { passive: true });
+    addEventListener('touchmove', wakeFallback, { passive: true });
 
     function renderFallbackFrame(now) {
-      if (!runningFallback) return;
-      fTime += 0.016;
+      if (!runningFallback || document.hidden) return;
       const W = fW, H = fH;
       if (W === 0 || H === 0) return;
 
+      const idleTime = now - lastFallbackActivity;
+      if (TIER === 4 && idleTime > 2000) {
+        fallbackSleeping = true;
+        return; // Enter idle sleep, 0% CPU
+      }
+
+      fTime += 0.033;
       const curY = window.scrollY || 0;
       const prog = progressFor(curY);
+      const parallaxY = Math.min(120, Math.round(prog * 14));
 
-      // 1. Deep Kyoto twilight sky
-      const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
-      skyGrad.addColorStop(0, '#04070a');
-      skyGrad.addColorStop(0.35, '#060b10');
-      skyGrad.addColorStop(0.70, '#09131a');
-      skyGrad.addColorStop(1, '#05080c');
-      ctx.fillStyle = skyGrad;
-      ctx.fillRect(0, 0, W, H);
+      // 1. Draw pre-rendered background in a single fast blit
+      if (cacheCanvas) {
+        ctx.drawImage(cacheCanvas, 0, -parallaxY);
+      }
 
-      // 2. Distant mountain ridges (Far range - Layer 1)
-      const p1 = (prog * 18) % (H * 0.2);
-      ctx.fillStyle = '#060c12';
-      ctx.beginPath();
-      ctx.moveTo(0, H * 0.60 + p1 * 0.25);
-      ctx.bezierCurveTo(W * 0.25, H * 0.53 + p1 * 0.25, W * 0.5, H * 0.63 + p1 * 0.25, W * 0.75, H * 0.57 + p1 * 0.25);
-      ctx.bezierCurveTo(W * 0.88, H * 0.54 + p1 * 0.25, W * 0.95, H * 0.60 + p1 * 0.25, W, H * 0.62 + p1 * 0.25);
-      ctx.lineTo(W, H);
-      ctx.lineTo(0, H);
-      ctx.closePath();
-      ctx.fill();
-
-      // 3. Mid-distance mountain & Kyoto forest ridge (Layer 2)
-      ctx.fillStyle = '#05090e';
-      ctx.beginPath();
-      ctx.moveTo(0, H * 0.70);
-      ctx.bezierCurveTo(W * 0.2, H * 0.66, W * 0.45, H * 0.73, W * 0.65, H * 0.68);
-      ctx.bezierCurveTo(W * 0.85, H * 0.65, W * 0.95, H * 0.71, W, H * 0.72);
-      ctx.lineTo(W, H);
-      ctx.lineTo(0, H);
-      ctx.closePath();
-      ctx.fill();
-
-      // 4. Luminous Kyoto Vermilion Moon
-      const moonX = W * 0.72;
-      const moonY = Math.max(65, H * 0.22 - prog * 14);
-      const moonRadius = Math.min(W * 0.16, 68);
-
-      // Outer moon corona / vermilion halo
-      const corona = ctx.createRadialGradient(moonX, moonY, moonRadius * 0.4, moonX, moonY, moonRadius * 3.2);
-      corona.addColorStop(0, 'rgba(224, 35, 28, 0.30)');
-      corona.addColorStop(0.35, 'rgba(255, 80, 50, 0.10)');
-      corona.addColorStop(0.70, 'rgba(224, 35, 28, 0.02)');
-      corona.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = corona;
-      ctx.beginPath();
-      ctx.arc(moonX, moonY, moonRadius * 3.2, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Moon disc
-      const moonDisc = ctx.createRadialGradient(moonX - moonRadius * 0.2, moonY - moonRadius * 0.2, moonRadius * 0.1, moonX, moonY, moonRadius);
-      moonDisc.addColorStop(0, '#ff4a36');
-      moonDisc.addColorStop(0.7, '#e0231c');
-      moonDisc.addColorStop(1, '#a61712');
-      ctx.fillStyle = moonDisc;
-      ctx.beginPath();
-      ctx.arc(moonX, moonY, moonRadius, 0, Math.PI * 2);
-      ctx.fill();
-
-      // 5. Atmospheric Ground Mist / Kyoto Fog
-      const mist = ctx.createLinearGradient(0, H * 0.52, 0, H);
-      mist.addColorStop(0, 'rgba(120, 160, 175, 0)');
-      mist.addColorStop(0.65, 'rgba(120, 160, 175, 0.05)');
-      mist.addColorStop(1, 'rgba(10, 15, 20, 0.75)');
-      ctx.fillStyle = mist;
-      ctx.fillRect(0, H * 0.52, W, H * 0.48);
-
-      // 6. Traditional Japanese Sanmon / Temple Roof Silhouette
-      ctx.fillStyle = '#04070a';
-      const roofY = H * 0.80;
-      const roofW = Math.min(W * 0.85, 420);
-      const roofX = (W - roofW) * 0.5;
-      ctx.beginPath();
-      ctx.moveTo(roofX, roofY + 12);
-      ctx.quadraticCurveTo(roofX + roofW * 0.5, roofY - 8, roofX + roofW, roofY + 12);
-      ctx.lineTo(roofX + roofW - 14, roofY + 22);
-      ctx.quadraticCurveTo(roofX + roofW * 0.5, roofY + 6, roofX + 14, roofY + 22);
-      ctx.closePath();
-      ctx.fill();
-
-      // 7. Floating Embers (Tier 4 only)
+      // 2. Draw floating embers
       if (TIER === 4) {
         for (let i = 0; i < embers.length; i++) {
           const emb = embers[i];
           emb.y -= emb.speedY;
-          emb.x += Math.sin(fTime * emb.swaySpeed + emb.phase) * 0.4;
+          emb.x += Math.sin(fTime * emb.swaySpeed + emb.phase) * 0.35;
           if (emb.y < -10) {
             emb.y = H + 10;
             emb.x = Math.random() * W;
           }
           const pulse = Math.sin(fTime * 2 + emb.phase) * 0.25 + 0.75;
-          ctx.fillStyle = `rgba(255, 160, 80, ${emb.alpha * pulse})`;
+          ctx.fillStyle = `rgba(255, 160, 80, ${(emb.alpha * pulse).toFixed(2)})`;
           ctx.beginPath();
           ctx.arc(emb.x, emb.y, emb.size, 0, Math.PI * 2);
           ctx.fill();
         }
       }
 
-      if (TIER === 4 && runningFallback) {
-        requestAnimationFrame(renderFallbackFrame);
+      if (TIER === 4 && runningFallback && !fallbackSleeping) {
+        // Capped at 30fps for maximum mobile battery efficiency
+        setTimeout(() => {
+          fallbackRaf = requestAnimationFrame(renderFallbackFrame);
+        }, 33);
       }
     }
 
     resizeFallback();
     renderFallbackFrame(performance.now());
 
-    window.addEventListener('resize', () => { resizeFallback(); renderFallbackFrame(performance.now()); }, { passive: true });
-    window.addEventListener('scroll', () => {
+    addEventListener('resize', () => { resizeFallback(); renderFallbackFrame(performance.now()); }, { passive: true });
+    addEventListener('scroll', () => {
       const cur = Math.round(progressFor(window.scrollY));
       if (cur !== activeSec) {
         activeSec = cur;
@@ -3836,7 +3984,13 @@ void main () {
 
     document.addEventListener('visibilitychange', () => {
       runningFallback = !document.hidden;
-      if (runningFallback && TIER === 4) requestAnimationFrame(renderFallbackFrame);
+      if (runningFallback && TIER === 4) {
+        fallbackSleeping = false;
+        lastFallbackActivity = performance.now();
+        requestAnimationFrame(renderFallbackFrame);
+      } else if (fallbackRaf) {
+        cancelAnimationFrame(fallbackRaf);
+      }
     });
 
     window.__kage = window.__secret = {
@@ -3871,8 +4025,10 @@ void main () {
     }],
     ['Growing the maples', () => {
       buildMaple(71, 12.6, -13.0, 1.05); buildMaple(72, -11.8, -9.4, .95);
-      buildMaple(73, 9.2, -19.0, .82); buildMaple(74, -14.5, -17.5, 1.0);
-      buildMaple(75, 16.5, -6.0, .88);
+      if (TIER <= 2) {
+        buildMaple(73, 9.2, -19.0, .82); buildMaple(74, -14.5, -17.5, 1.0);
+        buildMaple(75, 16.5, -6.0, .88);
+      }
     }],
     ['Painting the near grass', () => buildForeground()],
     ['Cutting the word', () => buildWordmark()],

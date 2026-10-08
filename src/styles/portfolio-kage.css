@@ -1833,3 +1833,22 @@ html.perf-tier-5 * {
   scroll-behavior: auto !important;
 }
 
+/* Mobile Compositor & Scroll Stability (Prevents layer thrashing and GPU stall) */
+@media (max-width: 820px) {
+  .fg.fg-retiring .fg-el {
+    filter: none !important;
+  }
+  .fg-el--sway > img {
+    animation: none !important;
+  }
+  .fg {
+    pointer-events: none !important;
+  }
+  html.perf-tier-3 .fg-el > img,
+  html.perf-tier-4 .fg-el > img,
+  html.perf-tier-5 .fg-el > img {
+    filter: none !important;
+  }
+}
+
+
