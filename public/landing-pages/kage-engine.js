@@ -1237,7 +1237,7 @@
     renderer.setSize(vpW(), vpH(), true);
     renderer.outputEncoding = WANT_POST ? THREE.LinearEncoding : THREE.sRGBEncoding;
     renderer.toneMapping = WANT_POST ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.0;
+    renderer.toneMappingExposure = (isMobile || vpW() <= 820) ? 0.72 : (WANT_POST ? 1.0 : 0.82);
     renderer.setClearColor(0x05070a, 1);
     if (WANT_SHADOW) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
     maxAniso = renderer.capabilities.getMaxAnisotropy();
@@ -2904,7 +2904,7 @@ void main () {
 
     /* the flight is the spine of the composition — without a lamp of its own it
        falls into the same black as the ground and the eye has nothing to climb */
-    const stairL = new THREE.PointLight(0xffa049, 4.2, 17, 2);
+    const stairL = new THREE.PointLight(0xffa049, (isMobile || vpW() <= 820) ? 2.3 : 4.2, 17, 2);
     stairL.position.set(0, 7.6, -26.0); scene.add(stairL);
   }
   /* ====================================================== 6 · planar mirror */
@@ -3782,10 +3782,16 @@ void main () {
 
   /* =================================================== 13b · Sanctuary Fallback (Tier 4 / 5) */
   function initSanctuaryFallbackCanvas() {
-    const glCanvas = document.getElementById('gl');
+    let glCanvas = document.getElementById('gl');
     if (!glCanvas) return;
-    const ctx = glCanvas.getContext('2d');
-    if (!ctx) return;
+    let ctx = glCanvas.getContext('2d');
+    if (!ctx) {
+      const replacement = glCanvas.cloneNode(false);
+      if (glCanvas.parentNode) glCanvas.parentNode.replaceChild(replacement, glCanvas);
+      glCanvas = replacement;
+      ctx = glCanvas.getContext('2d');
+      if (!ctx) return;
+    }
 
     let fW = 0, fH = 0;
     const embers = [];
@@ -3858,13 +3864,14 @@ void main () {
       bCtx.arc(moonX, moonY, moonRadius, 0, Math.PI * 2);
       bCtx.fill();
 
-      // 5. Ground Mist / Kyoto Fog
-      const mist = bCtx.createLinearGradient(0, cacheH * 0.50, 0, cacheH);
-      mist.addColorStop(0, 'rgba(120, 160, 175, 0)');
-      mist.addColorStop(0.65, 'rgba(120, 160, 175, 0.05)');
-      mist.addColorStop(1, 'rgba(10, 15, 20, 0.75)');
+      // 5. Ground Mist / Kyoto Fog — deep ink tones so UI is never washed out
+      const mist = bCtx.createLinearGradient(0, cacheH * 0.42, 0, cacheH);
+      mist.addColorStop(0, 'rgba(4, 7, 10, 0)');
+      mist.addColorStop(0.45, 'rgba(5, 9, 14, 0.55)');
+      mist.addColorStop(0.85, 'rgba(4, 7, 10, 0.94)');
+      mist.addColorStop(1, '#04070a');
       bCtx.fillStyle = mist;
-      bCtx.fillRect(0, cacheH * 0.50, W, cacheH * 0.50);
+      bCtx.fillRect(0, cacheH * 0.42, W, cacheH * 0.58);
 
       // 6. Traditional Japanese Sanmon / Temple Roof Silhouette
       bCtx.fillStyle = '#04070a';
@@ -4068,12 +4075,10 @@ void main () {
     // Safety watchdog: never leave the user locked on preloader
     safetyWatchdog = setTimeout(() => {
       if (!preEl.classList.contains('done')) {
-        console.warn('[kage] preloader safety unlock triggered');
-        preEl.classList.add('done');
-        document.body.classList.remove('is-locked');
-        $$('[data-rv], .mask-line').forEach(e => e.classList.add('rv-in'));
+        console.warn('[kage] preloader safety unlock triggered - switching to fallback');
+        fallback(new Error('Preloader timeout'));
       }
-    }, TIER >= 2 ? 1800 : 3500);
+    }, 4500);
 
     let i = 0;
     const step = () => {
