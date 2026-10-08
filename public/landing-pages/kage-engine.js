@@ -3697,22 +3697,22 @@ void main () {
     tPrev = now; clock += dt;
     fadeIn = INTRO.t0 ? sat((now - INTRO.t0) / 700) : 1;
 
-    if (!PERF.locked && clock > 2.0) {
-      PERF.acc += raw; PERF.n++;      /* … but the governor reads the truth */
-      if (PERF.n >= 35 || PERF.acc > 1.2) {
+    if (!PERF.locked && clock > 6.0) {
+      PERF.acc += raw; PERF.n++;      /* Sample frame times during steady playback */
+      if (PERF.n >= 50 || PERF.acc > 2.0) {
         const avg = PERF.acc / PERF.n; PERF.acc = 0; PERF.n = 0;
-        if (avg > .040 && TIER === 2) {
-          // Frame rate dropped below 25fps on Tier 2: switch to Tier 3
-          console.warn('[kage] Frame budget exceeded in Tier 2, auto-adapting to Tier 3');
-          applyTierChange(3);
-        } else if (avg > .044 && TIER === 3) {
-          // Frame rate dropped below 22fps on Tier 3: safely drop to 2D canvas fallback
-          console.warn('[kage] Frame budget exceeded in Tier 3, auto-adapting to Tier 4 (safe fallback)');
-          applyTierChange(4);
-          return;
-        } else if (avg > .0280 && PERF.scale > .65) {
+        if (avg > .0280 && PERF.scale > .65) {
           PERF.scale = Math.max(.65, PERF.scale * .85);
           resize(false);
+        } else if (avg > .055 && TIER === 2) {
+          // Sustained severe drop (< 18fps): adapt Tier 2 to Tier 3
+          console.warn('[kage] Adapting to Tier 3 for sustained smoothness');
+          applyTierChange(3);
+        } else if (avg > .060 && TIER === 3) {
+          // Sustained severe drop (< 16fps): safely step to 2D fallback
+          console.warn('[kage] Adapting to Tier 4 safe fallback for sustained smoothness');
+          applyTierChange(4);
+          return;
         } else if (avg < .0140 && PERF.scale < 1) {
           PERF.scale = Math.min(1, PERF.scale + .05);
           resize(false);
@@ -3738,44 +3738,23 @@ void main () {
     updateWorld(dt);
     render();
 
-    // Mid-range mobile (Tier 3) Idle Sleep: when camera reached resting position and no interaction, sleep completely!
-    if (TIER === 3 && (now - lastActiveScrollTime > 1500) && Math.abs(RIG.smooth - RIG.prog) < 0.0015) {
-      isSleeping = true;
-      return;
-    }
-
+    // Scene animates continuously — no idle freeze or timeout stops!
     queue();
   }
   const TIMER = qs('driver', 'raf') === 'timer';
-  let isSleeping = false;
-  let lastActiveScrollTime = performance.now();
-  const wakeUp = () => {
-    lastActiveScrollTime = performance.now();
-    if (isSleeping && running && !document.hidden) {
-      isSleeping = false;
-      tPrev = performance.now();
-      queue();
-    }
-  };
-  addEventListener('scroll', wakeUp, { passive: true });
-  addEventListener('touchstart', wakeUp, { passive: true });
-  addEventListener('touchmove', wakeUp, { passive: true });
-  addEventListener('wheel', wakeUp, { passive: true });
 
   function queue() {
-    if (!running || isSleeping || document.hidden) return;
+    if (!running || document.hidden) return;
     if (TIMER) {
       setTimeout(() => frame(performance.now()), 16);
       return;
     }
-    const idleTime = performance.now() - lastActiveScrollTime;
-    if (TIER === 3 && idleTime > 600) {
-      // Throttle to 20fps while settling
-      setTimeout(() => requestAnimationFrame(frame), 50);
-    } else if (TIER === 2 && idleTime > 1000) {
-      // Throttle to 30fps when idle on high-end mobile
-      setTimeout(() => requestAnimationFrame(frame), 33);
+    // Continuous adaptive rendering cadence:
+    if (TIER === 3) {
+      // Mid-range mobile: balanced 32fps continuous render (smooth, alive, cool device)
+      setTimeout(() => requestAnimationFrame(frame), 28);
     } else {
+      // High-end desktop and mobile: full continuous 60fps animation
       requestAnimationFrame(frame);
     }
   }
@@ -3914,31 +3893,12 @@ void main () {
 
     let fTime = 0;
     let runningFallback = true;
-    let fallbackSleeping = false;
-    let lastFallbackActivity = performance.now();
     let fallbackRaf = null;
-
-    const wakeFallback = () => {
-      lastFallbackActivity = performance.now();
-      if (fallbackSleeping && TIER === 4 && runningFallback && !document.hidden) {
-        fallbackSleeping = false;
-        fallbackRaf = requestAnimationFrame(renderFallbackFrame);
-      }
-    };
-    addEventListener('scroll', wakeFallback, { passive: true });
-    addEventListener('touchstart', wakeFallback, { passive: true });
-    addEventListener('touchmove', wakeFallback, { passive: true });
 
     function renderFallbackFrame(now) {
       if (!runningFallback || document.hidden) return;
       const W = fW, H = fH;
       if (W === 0 || H === 0) return;
-
-      const idleTime = now - lastFallbackActivity;
-      if (TIER === 4 && idleTime > 2000) {
-        fallbackSleeping = true;
-        return; // Enter idle sleep, 0% CPU
-      }
 
       fTime += 0.033;
       const curY = window.scrollY || 0;
@@ -3968,8 +3928,8 @@ void main () {
         }
       }
 
-      if (TIER === 4 && runningFallback && !fallbackSleeping) {
-        // Capped at 30fps for maximum mobile battery efficiency
+      if (TIER === 4 && runningFallback && !document.hidden) {
+        // Continuous 30fps animation for maximum mobile battery efficiency
         setTimeout(() => {
           fallbackRaf = requestAnimationFrame(renderFallbackFrame);
         }, 33);
