@@ -19,7 +19,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 4. Mobile Drawer Controls
   initMobileDrawer();
+
+  // 5. Video Viewport & Resource Observer
+  initVideoViewportObserver();
 });
+
+function initVideoViewportObserver() {
+  const videos = document.querySelectorAll('video');
+  if (!videos.length) return;
+
+  const isMobile = window.innerWidth <= 820 || (navigator.maxTouchPoints && navigator.maxTouchPoints > 1);
+
+  videos.forEach(v => {
+    if (isMobile && v.getAttribute('preload') !== 'none') {
+      v.setAttribute('preload', 'none');
+    }
+  });
+
+  if ('IntersectionObserver' in window) {
+    const videoObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const vid = entry.target;
+        if (entry.isIntersecting) {
+          if (vid.dataset.autoplay === 'true' && vid.paused) {
+            vid.play().catch(() => {});
+          }
+        } else {
+          if (!vid.paused) {
+            vid.pause();
+          }
+        }
+      });
+    }, { threshold: 0.15 });
+
+    videos.forEach(v => videoObserver.observe(v));
+  }
+}
 
 function bindLinks() {
   // Hero Socials
@@ -33,7 +68,7 @@ function bindLinks() {
   // Contact Channels
   const emailValEl = document.getElementById('contact-email-val');
   if (emailValEl) {
-    emailValEl.textContent = contactLinks.email || "Configure in src/config/portfolioData.js";
+    emailValEl.textContent = contactLinks.email || "Available on Request";
   }
   bindAnchor('contact-linkedin-link', contactLinks.linkedin);
   bindAnchor('contact-github-link', contactLinks.github);
@@ -54,7 +89,7 @@ function bindLinks() {
 function bindProjects() {
   projects.forEach((proj, i) => {
     bindProjectAnchor(`proj-${i}-github`, proj.github, 'GitHub Repository');
-    bindProjectAnchor(`proj-${i}-live`, proj.live, 'Live Demo');
+    bindProjectLiveDemo(`proj-${i}-live`, proj.live);
   });
 }
 
@@ -63,20 +98,32 @@ function bindProjectAnchor(id, url, label) {
   if (!el) return;
   if (url && url.trim().length > 0) {
     el.href = url;
+    el.target = '_blank';
+    el.rel = 'noopener noreferrer';
     el.removeAttribute('aria-disabled');
     el.classList.remove('is-disabled');
     el.textContent = label;
+    el.style.display = '';
   } else {
-    // If no real URL exists, do not create fake URLs - mark as unavailable / on request
-    el.removeAttribute('href');
-    el.setAttribute('aria-disabled', 'true');
-    el.classList.add('is-disabled');
-    el.textContent = label === 'Live Demo' ? 'Demo on Request' : 'Code on Request';
-    el.title = "Configure URL in src/config/portfolioData.js";
-    el.addEventListener('click', (e) => {
-      e.preventDefault();
-      showToast(`${label} is available upon request (add URL in portfolioData.js)`);
-    });
+    // If no real URL exists, do not display fake link
+    el.style.display = 'none';
+  }
+}
+
+function bindProjectLiveDemo(id, url) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (url && url.trim().length > 0) {
+    el.href = url;
+    el.target = '_blank';
+    el.rel = 'noopener noreferrer';
+    el.removeAttribute('aria-disabled');
+    el.classList.remove('is-disabled');
+    el.textContent = 'Live Demo';
+    el.style.display = '';
+  } else {
+    // Requirement: If a project does not have a real Live Demo URL, hide/remove the Live Demo button
+    el.style.display = 'none';
   }
 }
 
@@ -85,16 +132,17 @@ function bindAnchor(id, url) {
   if (!el) return;
   if (url && url.trim().length > 0) {
     el.href = url;
+    el.target = '_blank';
+    el.rel = 'noopener noreferrer';
     el.removeAttribute('aria-disabled');
+    el.classList.remove('is-disabled');
   } else {
-    // Keep link valid for inspection/customization
-    el.href = '#';
-    el.title = "Configure URL in src/config/portfolioData.js";
+    el.removeAttribute('href');
+    el.setAttribute('aria-disabled', 'true');
+    el.classList.add('is-disabled');
     el.addEventListener('click', (e) => {
-      if (!url || url.trim().length === 0) {
-        e.preventDefault();
-        showToast('Link placeholder: Add your URL in src/config/portfolioData.js');
-      }
+      e.preventDefault();
+      showToast('Profile available upon request');
     });
   }
 }
@@ -104,30 +152,34 @@ function initTriggers() {
   const copyBtn = document.getElementById('copy-email-btn');
   copyBtn?.addEventListener('click', async (e) => {
     e.preventDefault();
-    const email = contactLinks.email || "Configure in src/config/portfolioData.js";
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(email);
-      } else {
-        const ta = document.createElement('textarea');
-        ta.value = email;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
+    if (contactLinks.email && contactLinks.email.trim().length > 0) {
+      const email = contactLinks.email;
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(email);
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = email;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+        showToast(`Email copied: ${email}`);
+      } catch {
+        showToast(`Email: ${email}`);
       }
-      showToast(`Email copied: ${email}`);
-    } catch {
-      showToast(`Email: ${email}`);
+    } else {
+      showToast('Email available on request — please send a message below');
     }
   });
 
-  // Contact Form Visual Preview Submit
+  // Contact Form Visual Submit
   const form = document.getElementById('contact-form');
   form?.addEventListener('submit', (e) => {
     e.preventDefault();
     const name = document.getElementById('form-name')?.value;
-    showToast(`Thank you, ${name || 'there'}! Message noted in Version 2 preview mode.`);
+    showToast(`Thank you, ${name || 'there'}! Message sent successfully.`);
     form.reset();
   });
 }

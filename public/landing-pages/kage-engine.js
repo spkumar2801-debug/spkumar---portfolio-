@@ -14,6 +14,93 @@
   const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const COARSE = matchMedia('(hover: none)').matches;
 
+  /* =========================================================================
+     ADAPTIVE PERFORMANCE & QUALITY TIERS
+     Level 1 — HIGH-END DESKTOP (Full Three.js, PCF Soft Shadows, 4-tier bloom, full particles)
+     Level 2 — HIGH-END MOBILE  (Full 3D atmosphere, DPR <= 1.2, streamlined bloom, optimized particles)
+     Level 3 — MID-RANGE MOBILE (Lightweight 3D, DPR <= 1.0, direct render without bloom passes, 50% particles)
+     Level 4 — LOW-END MOBILE   (Lightweight 2D Kyoto Sanctuary Atmospheric Canvas, rock-solid 60fps)
+     Level 5 — VERY LOW POWER   (Static Kyoto Sanctuary Canvas, 0 continuous rAF loops, zero motion)
+     ========================================================================= */
+  function detectTier() {
+    const pTier = Q.get('tier');
+    if (pTier && /^[1-5]$/.test(pTier)) return parseInt(pTier, 10);
+    const q = Q.get('q');
+    if (q === 'lowpower' || q === 'min') return 5;
+    if (q === 'fallback' || q === 'lowend') return 4;
+    if (q === 'low' || q === 'mid') return 3;
+    if (q === 'highmob') return 2;
+    if (q === 'high') return 1;
+
+    // Signal 1: prefers-reduced-motion
+    if (REDUCE) return 5;
+
+    // Signal 2: Data Saver / 2G connection
+    if (navigator.connection && (navigator.connection.saveData || navigator.connection.effectiveType === '2g')) {
+      return 4;
+    }
+
+    const cores = navigator.hardwareConcurrency || 4;
+    const memory = navigator.deviceMemory || 4;
+    const isTouch = (navigator.maxTouchPoints && navigator.maxTouchPoints > 1) || COARSE;
+    const isNarrow = window.innerWidth <= 820;
+    const isMobileDev = isTouch && (isNarrow || window.innerWidth <= 1024);
+    const isDesktopDev = !isTouch && window.innerWidth > 1024;
+
+    // Signal 3: WebGL capabilities
+    let webglSupport = 2; // 0=none, 1=weak/software, 2=standard, 3=flagship
+    try {
+      const tc = document.createElement('canvas');
+      const gl = tc.getContext('webgl2') || tc.getContext('webgl');
+      if (!gl) {
+        webglSupport = 0;
+      } else {
+        const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+        if (dbg) {
+          const rdr = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL).toLowerCase();
+          if (rdr.includes('swiftshader') || rdr.includes('llvmpipe') || rdr.includes('software')) {
+            webglSupport = 0;
+          } else if (/apple|adreno\s*(6[4-9]\d|7\d\d)|mali-g7\d|mali-g6\d|nvidia|geforce|radeon/i.test(rdr)) {
+            webglSupport = 3;
+          } else if (/mali-4|mali-t|adreno\s*[345]|powervr/i.test(rdr)) {
+            webglSupport = 1;
+          }
+        }
+      }
+    } catch {
+      webglSupport = 0;
+    }
+
+    if (webglSupport === 0) return 4;
+
+    if (isDesktopDev) {
+      if (cores >= 6 && memory >= 4 && webglSupport >= 2) return 1;
+      if (cores >= 4) return 2;
+      return 3;
+    }
+
+    // Mobile / Tablet:
+    if (isMobileDev || isNarrow) {
+      if ((cores >= 8 && memory >= 6) || (webglSupport >= 3 && cores >= 6 && memory >= 4)) {
+        return 2;
+      }
+      if (cores >= 4 && memory >= 3 && webglSupport >= 2) {
+        return 3;
+      }
+      return 4;
+    }
+
+    return 3;
+  }
+
+  let TIER = detectTier();
+  if (typeof document !== 'undefined' && document.documentElement) {
+    document.documentElement.classList.add('perf-tier-' + TIER);
+    document.documentElement.dataset.tier = String(TIER);
+  }
+
+  const TEX_RES = (size) => Math.max(128, Math.round(size * (TIER === 1 ? 1.0 : (TIER === 2 ? 0.5 : 0.25))));
+
   const clamp = (v, a, b) => v < a ? a : (v > b ? b : v);
   const sat = v => clamp(v, 0, 1);
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -113,7 +200,7 @@
   /* ------------------------------------------------------- 2 · surfaces */
   /* long, wet, board-formed concrete — the sanctuary walls */
   function texWall() {
-    const W = 1024, H = 1024;
+    const W = TEX_RES(1024), H = TEX_RES(1024);
     const c = cvs(W, H), x = c.getContext('2d');
     x.fillStyle = '#10161a'; x.fillRect(0, 0, W, H);
 
@@ -161,7 +248,7 @@
 
   /* wet slate paving — big slabs, tight joints, standing water */
   function texFloor() {
-    const W = 1024, H = 1024;
+    const W = TEX_RES(1024), H = TEX_RES(1024);
     const c = cvs(W, H), x = c.getContext('2d');
     const rnd = mulberry32(23);
     x.fillStyle = '#0a0f12'; x.fillRect(0, 0, W, H);
@@ -221,7 +308,7 @@
      boards:0 gives a single timber for the columns, sills and rails, which are
      each one stick of wood and must not carry a joint. */
   function texWood(seed, opt) {
-    const o = opt || {}, W = 512, H = 512;
+    const o = opt || {}, W = TEX_RES(512), H = TEX_RES(512);
     const c = cvs(W, H), x = c.getContext('2d');
     const h = cvs(W, H), hx = h.getContext('2d');
     const r = cvs(W, H), rx = r.getContext('2d');
@@ -351,7 +438,7 @@
            field rather than dropped on as its own cloud. That cloud is what
            made this look like weather rather than stone. */
   function texStone(seed, opt) {
-    const o = opt || {}, W = 512, H = 512;
+    const o = opt || {}, W = TEX_RES(512), H = TEX_RES(512);
     const c = cvs(W, H), x = c.getContext('2d');
     const h = cvs(W, H), hx = h.getContext('2d');
     const r = cvs(W, H), rx = r.getContext('2d');
@@ -559,7 +646,7 @@
   /* the night sky itself: black at altitude, going to the fog colour at the
      horizon so the backdrop and the depth cue meet without a seam */
   function texSky() {
-    const W = 512, H = 512, c = cvs(W, H), x = c.getContext('2d');
+    const W = TEX_RES(512), H = TEX_RES(512), c = cvs(W, H), x = c.getContext('2d');
     const g = x.createLinearGradient(0, 0, 0, H);
     g.addColorStop(0, 'rgb(6,10,15)'); g.addColorStop(.34, 'rgb(13,22,31)');
     g.addColorStop(.66, 'rgb(17,26,34)'); g.addColorStop(.88, 'rgb(24,35,42)');
@@ -611,7 +698,7 @@
 
   /* glazed roof tile — half-round caps running down the slope, weathered */
   function texRoof() {
-    const W = 512, H = 512, c = cvs(W, H), x = c.getContext('2d');
+    const W = TEX_RES(512), H = TEX_RES(512), c = cvs(W, H), x = c.getContext('2d');
     const h = cvs(W, H), hx = h.getContext('2d');
     x.fillStyle = '#151c20'; x.fillRect(0, 0, W, H);
     hx.fillStyle = '#606060'; hx.fillRect(0, 0, W, H);
@@ -669,7 +756,7 @@
      fireball, and that is what this was doing. The disc is authored here in
      near-neutral albedo and the colour is applied once, on the material. */
   function texMoon() {
-    const S = 512, c = cvs(S, S), x = c.getContext('2d');
+    const S = TEX_RES(512), c = cvs(S, S), x = c.getContext('2d');
     const R = S / 2 - 1, rnd = mulberry32(91);
     const px = (u, v) => [S / 2 + u * R, S / 2 + v * R];        /* disc coords */
 
@@ -1059,13 +1146,13 @@
   const vpW = () => document.documentElement.clientWidth || innerWidth;
   const vpH = () => document.documentElement.clientHeight || innerHeight;
   let renderer, scene, camera, maxAniso = 1;
-  const isMobile = COARSE || (typeof window !== 'undefined' && (window.innerWidth <= 820 || (navigator.maxTouchPoints && navigator.maxTouchPoints > 1 && window.innerWidth <= 1024)));
-  const HI = qs('q', isMobile ? 'low' : 'high');
-  const LOW = HI === 'low';
-  const WANT_POST = qs('post', '1') !== '0';
-  const WANT_SHADOW = qs('shadow', (LOW || isMobile) ? '0' : '1') !== '0';
-  /* Desktop capped at 1.5; mobile capped at 1.25 to prevent fill-rate bottleneck */
-  const DPR_CAP = qn('dpr', isMobile ? 1.25 : 1.5);
+  const isMobile = TIER >= 2 && (COARSE || (typeof window !== 'undefined' && (window.innerWidth <= 820 || (navigator.maxTouchPoints && navigator.maxTouchPoints > 1 && window.innerWidth <= 1024))));
+  const HI = qs('q', (TIER === 1) ? 'high' : 'low');
+  const LOW = TIER >= 3;
+  const WANT_POST = (TIER === 1 || TIER === 2) && qs('post', '1') !== '0';
+  const WANT_SHADOW = (TIER === 1) && qs('shadow', '1') !== '0';
+  /* Desktop capped at 1.5; high mobile capped at 1.2; mid mobile capped at 1.0 */
+  const DPR_CAP = qn('dpr', TIER === 1 ? 1.5 : (TIER === 2 ? 1.2 : 1.0));
   /* the renderer trades resolution for frame rate on its own — the scene is
      fill-bound (five big alpha-blended veils plus a bloom chain), so pixels
      are the only knob worth turning on unknown hardware */
@@ -1084,7 +1171,7 @@
     renderer.toneMapping = WANT_POST ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.0;
     renderer.setClearColor(0x05070a, 1);
-    if (WANT_SHADOW && !isMobile) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
+    if (WANT_SHADOW) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
     maxAniso = renderer.capabilities.getMaxAnisotropy();
     scene = new THREE.Scene();
     /* Density puts the hall back in the air; the colour is what decides how
@@ -1895,7 +1982,7 @@
     const hazeTex = tx(texGlow('rgba(160,205,210,.55)', 'rgba(110,165,175,.18)'));
     WORLD.haze = [];
     const rnd = mulberry32(66);
-    for (let i = 0; i < (LOW ? 4 : 6); i++) {
+    for (let i = 0; i < (TIER === 1 ? 6 : (TIER === 2 ? 4 : 2)); i++) {
       const s = 12 + rnd() * 15;
       const h = new THREE.Mesh(new THREE.PlaneGeometry(s, s * .55),
         new THREE.MeshBasicMaterial({
@@ -1909,7 +1996,7 @@
     }
 
     /* embers around the lantern and the disc */
-    const N = LOW ? 220 : 460;
+    const N = TIER === 1 ? 460 : (TIER === 2 ? 140 : 50);
     const pos = new Float32Array(N * 3), seed = new Float32Array(N);
     for (let i = 0; i < N; i++) {
       pos[i * 3] = (rnd() - .5) * 30; pos[i * 3 + 1] = rnd() * 11; pos[i * 3 + 2] = -26 + rnd() * 36;
@@ -1943,8 +2030,8 @@
     scene.add(emb); WORLD.embers = emb;
 
     /* rain in the slot of open sky */
-    if (!LOW) {
-      const D = 900, rp = new Float32Array(D * 2 * 3), rt = new Float32Array(D * 2), rs = new Float32Array(D * 2), rl = new Float32Array(D * 2);
+    if (TIER <= 2) {
+      const D = TIER === 1 ? 900 : 280, rp = new Float32Array(D * 2 * 3), rt = new Float32Array(D * 2), rs = new Float32Array(D * 2), rl = new Float32Array(D * 2);
       for (let i = 0; i < D; i++) {
         const x = (rnd() - .5) * 40, z = -30 + rnd() * 34, y = rnd() * 17, sp = 7 + rnd() * 9, ln = .30 + rnd() * .55;
         for (let k = 0; k < 2; k++) {
@@ -1982,7 +2069,7 @@
     rx2.fillStyle = rg2; rx2.fillRect(0, 0, 256, 256);
     const ringTex = tx(ringC);
     WORLD.ripples = [];
-    for (let i = 0; i < (LOW ? 6 : 13); i++) {
+    for (let i = 0; i < (TIER === 1 ? 13 : (TIER === 2 ? 6 : 3)); i++) {
       const r = new THREE.Mesh(new THREE.PlaneGeometry(1, 1),
         new THREE.MeshBasicMaterial({
           map: ringTex, transparent: true, blending: THREE.AdditiveBlending,
@@ -2011,7 +2098,7 @@
      walked out from under its weather. */
   const LEAF_AHEAD = 11, LEAF_SPREAD = 12, LEAF_R = 30;
   function buildLeafFall() {
-    const N = LOW ? 110 : 260;
+    const N = TIER === 1 ? 260 : (TIER === 2 ? 90 : 35);
     const mat = new THREE.MeshStandardMaterial({
       map: tx(texLeaf()), alphaTest: .42, side: THREE.DoubleSide,
       color: 0x40080a, roughness: .84, metalness: 0,
@@ -2772,7 +2859,7 @@ void main () {
     const O = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, type: THREE.HalfFloatType, depthBuffer: false, stencilBuffer: false };
     POST.scene = new THREE.WebGLRenderTarget(w, h, Object.assign({}, O, { depthBuffer: true, samples: LOW ? 0 : 2 }));
     let lw = Math.max(2, w >> 1), lh = Math.max(2, h >> 1);
-    const N = 4;
+    const N = (TIER === 2) ? 2 : 4;
     for (let i = 0; i < N; i++) {
       POST.levels.push({ a: new THREE.WebGLRenderTarget(lw, lh, O), b: new THREE.WebGLRenderTarget(lw, lh, O), w: lw, h: lh });
       lw = Math.max(2, lw >> 1); lh = Math.max(2, lh >> 1);
@@ -3170,7 +3257,7 @@ void main () {
         const a = 1 - smooth(o.at, o.at + o.span, t);
         o.el.style.opacity = a.toFixed(3);
         if (o.shift) o.el.style.transform = 'translate3d(0,' + ((1 - a) * 15).toFixed(1) + 'px,0)';
-        if (o.blur) o.el.style.filter = a > .999 ? '' : 'blur(' + ((1 - a) * o.blur).toFixed(1) + 'px)';
+        if (o.blur && TIER === 1) o.el.style.filter = a > .999 ? '' : 'blur(' + ((1 - a) * o.blur).toFixed(1) + 'px)';
         o.el.style.pointerEvents = a < .05 ? 'none' : '';
       });
     };
@@ -3335,7 +3422,7 @@ void main () {
     }
   }
   function cardBuffer(C, w, h) {
-    const pr = Math.min(renderer.getPixelRatio(), 2);
+    const pr = Math.min(renderer.getPixelRatio(), TIER === 1 ? 1.5 : 1.0);
     const W = Math.max(8, Math.round(w * pr)), H = Math.max(8, Math.round(h * pr));
     if (C.rt && C.rt.width === W && C.rt.height === H) return C.rt;
     if (C.rt) C.rt.dispose();
@@ -3529,11 +3616,17 @@ void main () {
     tPrev = now; clock += dt;
     fadeIn = INTRO.t0 ? sat((now - INTRO.t0) / 700) : 1;
 
-    if (!PERF.locked && clock > 2.5) {
+    if (!PERF.locked && clock > 2.0) {
       PERF.acc += raw; PERF.n++;      /* … but the governor reads the truth */
-      if (PERF.n >= 75 || PERF.acc > 1.8) {
+      if (PERF.n >= 45 || PERF.acc > 1.5) {
         const avg = PERF.acc / PERF.n; PERF.acc = 0; PERF.n = 0;
-        if (avg > .0280 && PERF.scale > .65) {
+        if (avg > .034 && TIER === 2) {
+          // Frame rate dropped below 29fps on Tier 2: switch to Tier 3
+          TIER = 3;
+          document.documentElement.className = document.documentElement.className.replace(/perf-tier-\d/, 'perf-tier-3');
+          document.documentElement.dataset.tier = '3';
+          resize(false);
+        } else if (avg > .0280 && PERF.scale > .65) {
           PERF.scale = Math.max(.65, PERF.scale * .85);
           resize(false);
         } else if (avg < .0140 && PERF.scale < 1) {
@@ -3563,7 +3656,198 @@ void main () {
     queue();
   }
   const TIMER = qs('driver', 'raf') === 'timer';
-  function queue() { TIMER ? setTimeout(() => frame(performance.now()), 16) : requestAnimationFrame(frame); }
+  let lastActiveScrollTime = performance.now();
+  addEventListener('scroll', () => { lastActiveScrollTime = performance.now(); }, { passive: true });
+  addEventListener('touchmove', () => { lastActiveScrollTime = performance.now(); }, { passive: true });
+  function queue() {
+    if (TIMER) {
+      setTimeout(() => frame(performance.now()), 16);
+      return;
+    }
+    // Mid-range mobile (Tier 3) battery saver: if idle for > 2.5s, throttle to 30fps
+    if (TIER === 3 && (performance.now() - lastActiveScrollTime > 2500)) {
+      setTimeout(() => requestAnimationFrame(frame), 16);
+    } else {
+      requestAnimationFrame(frame);
+    }
+  }
+
+  /* =================================================== 13b · Sanctuary Fallback (Tier 4 / 5) */
+  function initSanctuaryFallbackCanvas() {
+    const glCanvas = document.getElementById('gl');
+    if (!glCanvas) return;
+    const ctx = glCanvas.getContext('2d');
+    if (!ctx) return;
+
+    let fW = 0, fH = 0;
+    const embers = [];
+    const EMBER_COUNT = (TIER === 5) ? 12 : 24;
+
+    function resizeFallback() {
+      fW = vpW();
+      fH = vpH();
+      const dpr = Math.min(devicePixelRatio || 1, 1.25);
+      glCanvas.width = Math.round(fW * dpr);
+      glCanvas.height = Math.round(fH * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      document.documentElement.style.setProperty('--vw', fW + 'px');
+      measure();
+    }
+
+    // Seed floating embers
+    for (let i = 0; i < EMBER_COUNT; i++) {
+      embers.push({
+        x: Math.random() * (fW || 400),
+        y: Math.random() * (fH || 800),
+        size: 1.2 + Math.random() * 2.2,
+        speedY: 0.25 + Math.random() * 0.55,
+        swaySpeed: 0.8 + Math.random() * 1.5,
+        phase: Math.random() * Math.PI * 2,
+        alpha: 0.25 + Math.random() * 0.6
+      });
+    }
+
+    let fTime = 0;
+    let runningFallback = true;
+
+    function renderFallbackFrame(now) {
+      if (!runningFallback) return;
+      fTime += 0.016;
+      const W = fW, H = fH;
+      if (W === 0 || H === 0) return;
+
+      const curY = window.scrollY || 0;
+      const prog = progressFor(curY);
+
+      // 1. Deep Kyoto twilight sky
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+      skyGrad.addColorStop(0, '#04070a');
+      skyGrad.addColorStop(0.35, '#060b10');
+      skyGrad.addColorStop(0.70, '#09131a');
+      skyGrad.addColorStop(1, '#05080c');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, W, H);
+
+      // 2. Distant mountain ridges (Far range - Layer 1)
+      const p1 = (prog * 18) % (H * 0.2);
+      ctx.fillStyle = '#060c12';
+      ctx.beginPath();
+      ctx.moveTo(0, H * 0.60 + p1 * 0.25);
+      ctx.bezierCurveTo(W * 0.25, H * 0.53 + p1 * 0.25, W * 0.5, H * 0.63 + p1 * 0.25, W * 0.75, H * 0.57 + p1 * 0.25);
+      ctx.bezierCurveTo(W * 0.88, H * 0.54 + p1 * 0.25, W * 0.95, H * 0.60 + p1 * 0.25, W, H * 0.62 + p1 * 0.25);
+      ctx.lineTo(W, H);
+      ctx.lineTo(0, H);
+      ctx.closePath();
+      ctx.fill();
+
+      // 3. Mid-distance mountain & Kyoto forest ridge (Layer 2)
+      ctx.fillStyle = '#05090e';
+      ctx.beginPath();
+      ctx.moveTo(0, H * 0.70);
+      ctx.bezierCurveTo(W * 0.2, H * 0.66, W * 0.45, H * 0.73, W * 0.65, H * 0.68);
+      ctx.bezierCurveTo(W * 0.85, H * 0.65, W * 0.95, H * 0.71, W, H * 0.72);
+      ctx.lineTo(W, H);
+      ctx.lineTo(0, H);
+      ctx.closePath();
+      ctx.fill();
+
+      // 4. Luminous Kyoto Vermilion Moon
+      const moonX = W * 0.72;
+      const moonY = Math.max(65, H * 0.22 - prog * 14);
+      const moonRadius = Math.min(W * 0.16, 68);
+
+      // Outer moon corona / vermilion halo
+      const corona = ctx.createRadialGradient(moonX, moonY, moonRadius * 0.4, moonX, moonY, moonRadius * 3.2);
+      corona.addColorStop(0, 'rgba(224, 35, 28, 0.30)');
+      corona.addColorStop(0.35, 'rgba(255, 80, 50, 0.10)');
+      corona.addColorStop(0.70, 'rgba(224, 35, 28, 0.02)');
+      corona.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = corona;
+      ctx.beginPath();
+      ctx.arc(moonX, moonY, moonRadius * 3.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Moon disc
+      const moonDisc = ctx.createRadialGradient(moonX - moonRadius * 0.2, moonY - moonRadius * 0.2, moonRadius * 0.1, moonX, moonY, moonRadius);
+      moonDisc.addColorStop(0, '#ff4a36');
+      moonDisc.addColorStop(0.7, '#e0231c');
+      moonDisc.addColorStop(1, '#a61712');
+      ctx.fillStyle = moonDisc;
+      ctx.beginPath();
+      ctx.arc(moonX, moonY, moonRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 5. Atmospheric Ground Mist / Kyoto Fog
+      const mist = ctx.createLinearGradient(0, H * 0.52, 0, H);
+      mist.addColorStop(0, 'rgba(120, 160, 175, 0)');
+      mist.addColorStop(0.65, 'rgba(120, 160, 175, 0.05)');
+      mist.addColorStop(1, 'rgba(10, 15, 20, 0.75)');
+      ctx.fillStyle = mist;
+      ctx.fillRect(0, H * 0.52, W, H * 0.48);
+
+      // 6. Traditional Japanese Sanmon / Temple Roof Silhouette
+      ctx.fillStyle = '#04070a';
+      const roofY = H * 0.80;
+      const roofW = Math.min(W * 0.85, 420);
+      const roofX = (W - roofW) * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(roofX, roofY + 12);
+      ctx.quadraticCurveTo(roofX + roofW * 0.5, roofY - 8, roofX + roofW, roofY + 12);
+      ctx.lineTo(roofX + roofW - 14, roofY + 22);
+      ctx.quadraticCurveTo(roofX + roofW * 0.5, roofY + 6, roofX + 14, roofY + 22);
+      ctx.closePath();
+      ctx.fill();
+
+      // 7. Floating Embers (Tier 4 only)
+      if (TIER === 4) {
+        for (let i = 0; i < embers.length; i++) {
+          const emb = embers[i];
+          emb.y -= emb.speedY;
+          emb.x += Math.sin(fTime * emb.swaySpeed + emb.phase) * 0.4;
+          if (emb.y < -10) {
+            emb.y = H + 10;
+            emb.x = Math.random() * W;
+          }
+          const pulse = Math.sin(fTime * 2 + emb.phase) * 0.25 + 0.75;
+          ctx.fillStyle = `rgba(255, 160, 80, ${emb.alpha * pulse})`;
+          ctx.beginPath();
+          ctx.arc(emb.x, emb.y, emb.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      if (TIER === 4 && runningFallback) {
+        requestAnimationFrame(renderFallbackFrame);
+      }
+    }
+
+    resizeFallback();
+    renderFallbackFrame(performance.now());
+
+    window.addEventListener('resize', () => { resizeFallback(); renderFallbackFrame(performance.now()); }, { passive: true });
+    window.addEventListener('scroll', () => {
+      const cur = Math.round(progressFor(window.scrollY));
+      if (cur !== activeSec) {
+        activeSec = cur;
+        syncNav(cur);
+      }
+      if (TIER === 5) renderFallbackFrame(performance.now());
+    }, { passive: true });
+
+    document.addEventListener('visibilitychange', () => {
+      runningFallback = !document.hidden;
+      if (runningFallback && TIER === 4) requestAnimationFrame(renderFallbackFrame);
+    });
+
+    window.__kage = window.__secret = {
+      tier: TIER,
+      qualityLevel: TIER,
+      isFallback: true,
+      renderer: { getPixelRatio: () => 1, domElement: glCanvas },
+      anchors: () => anchors,
+      measure: measure
+    };
+  }
 
   /* ======================================================== 14 · booting */
   const JOBS = [
@@ -3576,11 +3860,6 @@ void main () {
     ['Placing the stones', () => {
       buildRocks();
       buildLantern(7.4, -7.0, 1.15); buildLantern(-7.6, -5.2, 1.0);
-      /* The pairs flanking the flight were given flat heights — 2 and PODIUM —
-         and the flight does not reach either at those depths, so both pairs hung
-         in the air. Solve the step under each one from the same constants the
-         treads and cheeks are built from, and they stand on the rail instead of
-         beside it. */
       const stepAt = z => Math.max(0, (STAIR_Z0 - z) / STAIR_RUN - .5);
       const cheekTop = z => (stepAt(z) + 1) * (PODIUM / STEPS) + .45;
       const cheekX = z => (STAIR_W + (STEPS - stepAt(z)) * .052) / 2 + .45;
@@ -3597,26 +3876,49 @@ void main () {
     }],
     ['Painting the near grass', () => buildForeground()],
     ['Cutting the word', () => buildWordmark()],
-    ['Raising the mist', () => { buildAtmosphere(); buildLeafFall(); buildWisps(); }],
+    ['Raising the mist', () => { buildAtmosphere(); buildLeafFall(); if (TIER === 1) buildWisps(); }],
     ['Polishing the water', () => {
       initPost(); buildCards(); buildCardCloth();
       WORLD.fg.forEach(m => m.layers.set(1));
       WORD.glyphs.forEach(m => m.layers.set(2));
       if (WORLD.rain) WORLD.rain.layers.set(1);
-      /* the fall is all around the rig, including behind it — mirroring it
-         would drop leaves into the water that are nowhere near the water */
       if (WORLD.leaves) WORLD.leaves.mesh.layers.set(1);
       WORLD.ripples.forEach(r => r.layers.set(1));
       layoutWord(); measure();
-      /* nothing that casts a shadow ever moves, so bake it once */
       if (WANT_SHADOW && WORLD.key) { WORLD.key.shadow.autoUpdate = false; WORLD.key.shadow.needsUpdate = true; }
     }]
   ];
+
+  let safetyWatchdog = null;
 
   function boot() {
     makeGrain();
     wireReveals(); wireForegroundStages(); wireNav(); wireHeroExit(); wireFocus(); wireCursor();
     document.body.classList.add('is-locked');
+
+    // LEVEL 4 & LEVEL 5: Bypass heavy Three.js scene creation completely!
+    if (TIER >= 4) {
+      initSanctuaryFallbackCanvas();
+      preFill.style.right = '0%';
+      prePct.textContent = '100';
+      setTimeout(() => {
+        preEl.classList.add('done');
+        document.body.classList.remove('is-locked');
+        $$('[data-rv], .mask-line').forEach(e => e.classList.add('rv-in'));
+      }, 80);
+      return;
+    }
+
+    // Safety watchdog: never leave the user locked on preloader
+    safetyWatchdog = setTimeout(() => {
+      if (!preEl.classList.contains('done')) {
+        console.warn('[kage] preloader safety unlock triggered');
+        preEl.classList.add('done');
+        document.body.classList.remove('is-locked');
+        $$('[data-rv], .mask-line').forEach(e => e.classList.add('rv-in'));
+      }
+    }, TIER >= 2 ? 1800 : 3500);
+
     let i = 0;
     const step = () => {
       const j = JOBS[i];
@@ -3625,7 +3927,7 @@ void main () {
         const p = i / JOBS.length;
         preFill.style.right = ((1 - p) * 100).toFixed(1) + '%';
         prePct.textContent = Math.round(p * 100);
-        if (i < JOBS.length) setTimeout(step, 16); else setTimeout(start, 220);
+        if (i < JOBS.length) setTimeout(step, 8); else setTimeout(start, 120);
       };
       let r;
       try { r = j[1](); }
@@ -3635,19 +3937,21 @@ void main () {
       }
       (r && r.then) ? r.then(done, done) : done();
     };
-    setTimeout(step, 60);
+    setTimeout(step, 40);
   }
 
   function fallback(err) {
+    if (safetyWatchdog) clearTimeout(safetyWatchdog);
     document.documentElement.classList.add('no-webgl');
     document.body.classList.add('no-webgl');
     document.body.classList.remove('is-locked');
     preEl.classList.add('done');
     $$('[data-rv], .mask-line').forEach(e => e.classList.add('rv-in'));
-    window.__kage = window.__secret = { fallback: true, error: String(err && err.message || err) };
+    initSanctuaryFallbackCanvas();
   }
 
   function start() {
+    if (safetyWatchdog) clearTimeout(safetyWatchdog);
     addEventListener('resize', () => { resize(true); }, { passive: true });
     addEventListener('orientationchange', () => setTimeout(() => resize(true), 250));
     document.addEventListener('visibilitychange', () => {
@@ -3677,7 +3981,21 @@ void main () {
     running = true; tPrev = performance.now();
     INTRO.t0 = shot !== null ? 0 : (REDUCE ? performance.now() - 4000 : performance.now());
     queue();
-    window.__kage = window.__secret = { RIG: RIG, WORLD: WORLD, WORD: WORD, CAM: CAM, POST: POST, renderer: renderer, scene: scene, camera: camera, anchors: () => anchors, measure: measure };
+    window.__kage = window.__secret = {
+      tier: TIER,
+      qualityLevel: TIER,
+      isFallback: false,
+      RIG: RIG,
+      WORLD: WORLD,
+      WORD: WORD,
+      CAM: CAM,
+      POST: POST,
+      renderer: renderer,
+      scene: scene,
+      camera: camera,
+      anchors: () => anchors,
+      measure: measure
+    };
   }
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') setTimeout(boot, 0);

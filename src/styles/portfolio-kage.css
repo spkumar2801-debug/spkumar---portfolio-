@@ -1751,3 +1751,85 @@ p, .body-lg {
     font-size: 24px;
   }
 }
+
+/* ==========================================================================
+   ADAPTIVE QUALITY TIER PERFORMANCE STYLES
+   Level 1: Full Three.js Kyoto sanctuary, full post-processing & effects
+   Level 2: High-end mobile — streamlined blur & shadow passes
+   Level 3: Mid-range mobile — lightweight blur (6px), optimized shadows, no scroll blur
+   Level 4: Low-end mobile — zero backdrop-filter, crisp dark glass fallback, rock-solid 60fps
+   Level 5: Very low power / reduced motion — static background, instant transitions
+   ========================================================================== */
+
+.project-image-box picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* TIER 3 (Mid-Range Mobile) */
+html.perf-tier-3 .nav,
+html.perf-tier-3 .nav-sheet,
+html.perf-tier-3 .project-editorial-card,
+html.perf-tier-3 .sec-card,
+html.perf-tier-3 .contact-channel-item {
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45) !important;
+}
+
+/* TIER 4 (Low-End Mobile) */
+html.perf-tier-4 #grain {
+  display: none !important;
+}
+
+html.perf-tier-4 .nav,
+html.perf-tier-4 .nav-sheet,
+html.perf-tier-4 .project-editorial-card,
+html.perf-tier-4 .sec-card,
+html.perf-tier-4 .contact-channel-item,
+html.perf-tier-4 .hero-status-pill,
+html.perf-tier-4 .brand-monogram,
+html.perf-tier-4 .spk-toast {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: rgba(8, 12, 17, 0.94) !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5) !important;
+}
+
+html.perf-tier-4 .project-editorial-card {
+  border: 1px solid rgba(220, 235, 245, 0.1) !important;
+}
+
+html.perf-tier-4 .hero-ctas,
+html.perf-tier-4 .hero-top {
+  filter: none !important;
+}
+
+/* TIER 5 (Very Low Power / Prefers Reduced Motion) */
+html.perf-tier-5 #grain {
+  display: none !important;
+}
+
+html.perf-tier-5 .nav,
+html.perf-tier-5 .nav-sheet,
+html.perf-tier-5 .project-editorial-card,
+html.perf-tier-5 .sec-card,
+html.perf-tier-5 .contact-channel-item,
+html.perf-tier-5 .hero-status-pill,
+html.perf-tier-5 .brand-monogram,
+html.perf-tier-5 .spk-toast {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: rgba(8, 12, 17, 0.96) !important;
+  box-shadow: none !important;
+  border-color: rgba(220, 235, 245, 0.12) !important;
+}
+
+html.perf-tier-5 * {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+

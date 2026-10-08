@@ -32,10 +32,10 @@ export const personalInfo = {
 
 // Social & Contact Placeholders (Leave empty or set to real URLs)
 export const contactLinks = {
-  email: "", // Insert your real email here e.g. "saladi.prasannakumar@example.com"
-  linkedin: "", // Insert your real LinkedIn URL here e.g. "https://linkedin.com/in/prasannakumar"
-  github: "", // Insert your real GitHub profile URL here e.g. "https://github.com/prasannakumar"
-  youtube: "", // Insert your real YouTube channel URL here e.g. "https://youtube.com/@TeluguDelightGamers"
+  email: "", // Leave empty if not configured; UI will display "Available on Request"
+  linkedin: "", // Insert real LinkedIn URL when available
+  github: "https://github.com/spkumar2801-debug",
+  youtube: "https://www.youtube.com/@TeluguDelightGamers",
 };
 
 // YouTube Creative Pursuit Channel
@@ -44,11 +44,10 @@ export const youtubeChannel = {
   audience: "2K+ Followers / Subscribers",
   badge: "Creative Pursuit & Community",
   description: "A passionate personal creative achievement channel showcasing high-energy gaming walkthroughs, livestreams, and community leadership outside of software engineering.",
-  url: "" // Insert real channel URL here
+  url: "https://www.youtube.com/@TeluguDelightGamers"
 };
 
 // PROJECTS (ONLY THE FOUR REAL PROJECTS AS SPECIFIED)
-// URLs start as clean empty strings for user configuration.
 export const projects = [
   {
     id: "sloopin",
@@ -57,8 +56,8 @@ export const projects = [
     tagline: "Social Media Platform",
     description: "A modern social-media-style web application featuring user authentication, interactive feed, media sharing, and fluid responsive interactions.",
     technologies: ["Frontend", "Firebase", "Cloudinary", "JavaScript"],
-    github: "", // Configure real GitHub URL here
-    live: ""    // Configure real Live Demo URL here
+    github: "https://github.com/spkumar2801-debug/Friend",
+    live: ""    // Hidden if not configured
   },
   {
     id: "supermarket",
@@ -67,8 +66,8 @@ export const projects = [
     tagline: "Inventory & Commerce",
     description: "A comprehensive supermarket management application streamlining inventory tracking, product cataloging, transaction billing, and real-time operations.",
     technologies: ["Full Stack", "Database", "JavaScript", "Backend"],
-    github: "", // Configure real GitHub URL here
-    live: ""    // Configure real Live Demo URL here
+    github: "https://github.com/spkumar2801-debug/SP.Market.Core",
+    live: ""    // Hidden if not configured
   },
   {
     id: "pk-attendance",
@@ -77,8 +76,8 @@ export const projects = [
     tagline: "Enterprise Management",
     description: "An automated attendance tracking platform designed for institutional efficiency, attendance logging, administrative oversight, and student reporting.",
     technologies: ["Full Stack", "Firebase", "Frontend", "JavaScript"],
-    github: "", // Configure real GitHub URL here
-    live: ""    // Configure real Live Demo URL here
+    github: "https://github.com/spkumar2801-debug/PK-Attendence",
+    live: ""    // Hidden if not configured
   },
   {
     id: "pk-college-web",
@@ -87,8 +86,8 @@ export const projects = [
     tagline: "Institutional Web Portal",
     description: "A modern responsive college website engineered with dynamic academic content management, administrative functionality, and cloud-integrated data architecture.",
     technologies: ["Frontend", "Firebase", "Cloudinary", "JavaScript"],
-    github: "", // Configure real GitHub URL here
-    live: ""    // Configure real Live Demo URL here
+    github: "https://github.com/spkumar2801-debug/PK-college-",
+    live: ""    // Hidden if not configured
   }
 ];
 
